@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Browser Comparison</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Calm Harmony (Background: #F8F7F4, Text: #3D4C5A, Accents: Teal, Sand, Terracotta) -->
+    <!-- Application Structure Plan: A dashboard-style SPA. Key sections: 1) Interactive Priority Sorter (user ranks criteria like battery, privacy). 2) Tabbed Detailed Comparison (view by Criterion with charts, or by Browser with radar charts). 3) Dynamic Verdict section that updates based on user priorities. This structure transforms a static report into a personalized decision-making tool, focusing on user exploration and direct comparison over linear reading. -->
+    <!-- Visualization & Content Choices: Report Info: Battery stats -> Goal: Compare -> Viz: Bar Chart -> Interaction: Hover for details -> Justification: Clear visual comparison of quantitative data -> Library: Chart.js. Report Info: Qualitative ratings -> Goal: Summarize/Compare -> Viz: Radar Chart (per browser) & Icon-based rating cards (per criterion) -> Interaction: Tabs to switch views -> Justification: Radar charts provide a holistic 'fingerprint' of a browser, while cards allow quick comparison on a single metric -> Library: Chart.js & HTML/CSS. Report Info: Recommendations -> Goal: Personalize -> Viz: Dynamic text block + sortable HTML table -> Interaction: Updates from priority sliders -> Justification: Makes the conclusion actionable and user-centric. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #F8F7F4;
+            color: #3D4C5A;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 350px;
+            max-height: 400px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 400px;
+            }
+        }
+        .nav-button {
+            transition: all 0.3s ease;
+        }
+        .nav-button.active {
+            background-color: #00796B;
+            color: #ffffff;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+        }
+        .priority-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #00796B;
+            cursor: pointer;
+            border-radius: 50%;
+        }
+        .priority-slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background: #00796B;
+            cursor: pointer;
+            border-radius: 50%;
+            border: none;
+        }
+        .verdict-card {
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+        .verdict-card.top-pick {
+            border-color: #F59E0B;
+            box-shadow: 0 10px 15px -3px rgba(245, 158, 11, 0.2), 0 4px 6px -2px rgba(245, 158, 11, 0.1);
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div class="container mx-auto p-4 sm:p-6 lg:p-8">
+        
+        <header class="text-center mb-12">
+            <h1 class="text-4xl md:text-5xl font-bold text-teal-800 mb-2">Browser Decision Dashboard</h1>
+            <p class="text-lg text-gray-600 max-w-3xl mx-auto">An interactive tool to find the perfect browser for your creative workflow, based on your priorities.</p>
+        </header>
+
+        <main>
+            <!-- Priorities Section -->
+            <section id="priorities" class="mb-16 bg-white rounded-xl shadow-lg p-6 md:p-8">
+                <h2 class="text-2xl font-bold mb-2 text-teal-700">1. What Matters Most to You?</h2>
+                <p class="text-gray-600 mb-6">Adjust the sliders to reflect the importance of each criterion. Your top recommendation will update in real-time.</p>
+                <div id="priority-sliders" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-6">
+                </div>
+            </section>
+
+            <!-- Verdict Section -->
+            <section id="verdict" class="mb-16">
+                <h2 class="text-2xl font-bold mb-4 text-teal-700">2. Your Personalized Recommendation</h2>
+                <div id="verdict-content" class="bg-teal-50 border-l-4 border-teal-500 text-teal-800 p-6 rounded-lg shadow-md">
+                </div>
+            </section>
+            
+            <!-- Comparison Section -->
+            <section id="comparison" class="mb-16">
+                <h2 class="text-2xl font-bold mb-4 text-teal-700">3. Explore the Data</h2>
+                <div class="flex flex-wrap justify-center gap-2 mb-8">
+                    <button data-view="criterion" class="nav-button py-2 px-4 rounded-full bg-white shadow active">Compare by Criterion</button>
+                    <button data-view="browser" class="nav-button py-2 px-4 rounded-full bg-white shadow">Deep Dive by Browser</button>
+                </div>
+                
+                <div id="comparison-content" class="bg-white rounded-xl shadow-lg p-6 md:p-8 min-h-[500px]">
+                    <!-- View by Criterion -->
+                    <div id="view-criterion">
+                        <div class="flex flex-wrap justify-center gap-2 mb-6 border-b pb-4">
+                        </div>
+                        <div id="criterion-detail" class="mt-4">
+                        </div>
+                    </div>
+                    <!-- View by Browser -->
+                    <div id="view-browser" class="hidden">
+                         <div class="flex flex-wrap justify-center gap-2 mb-6 border-b pb-4">
+                         </div>
+                         <div id="browser-detail" class="mt-4">
+                         </div>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+
+        <footer class="text-center mt-12 py-6 border-t border-gray-200">
+            <p class="text-gray-500 text-sm">Application designed based on the report "Optimizing the Digital Workspace: A Comprehensive Browser Analysis for Creative Professionals".</p>
+        </footer>
+
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+
+            const browserData = [
+                {
+                    id: 'firefox', name: 'Mozilla Firefox',
+                    ratings: { battery: 5, privacy: 4, bitwarden: 5, performance: 3, stability: 5, features: 3, sync: 5 },
+                    batteryScore: 4061.55,
+                    summary: 'The champion for battery efficiency on macOS with strong privacy controls and reliable Bitwarden support. Its performance on graphics-heavy sites can sometimes lag behind Chromium alternatives.'
+                },
+                {
+                    id: 'brave', name: 'Brave Browser',
+                    ratings: { battery: 4, privacy: 5, bitwarden: 4, performance: 4, stability: 4, features: 4, sync: 5 },
+                    batteryScore: 4500,
+                    summary: 'An excellent choice for privacy absolutists. Built-in ad-blocking contributes to good battery life. Users should verify Bitwarden passkey integration, as some conflicts have been reported.'
+                },
+                {
+                    id: 'edge', name: 'Microsoft Edge',
+                    ratings: { battery: 4, privacy: 3, bitwarden: 5, performance: 4, stability: 4, features: 4, sync: 5 },
+                    batteryScore: 4600,
+                    summary: 'A stable, feature-rich Chromium browser with good battery life on macOS and excellent Bitwarden support. Its privacy practices are standard for a large tech company.'
+                },
+                {
+                    id: 'chrome', name: 'Google Chrome',
+                    ratings: { battery: 2, privacy: 2, bitwarden: 5, performance: 5, stability: 5, features: 3, sync: 5 },
+                    batteryScore: 5050,
+                    summary: 'The standard for compatibility and performance, but falls short on battery efficiency and privacy due to its data-centric business model.'
+                },
+                {
+                    id: 'vivaldi', name: 'Vivaldi',
+                    ratings: { battery: 1, privacy: 5, bitwarden: 4, performance: 3, stability: 2, features: 5, sync: 4 },
+                    batteryScore: 5500,
+                    summary: 'Unmatched in customization and built-in features for power users. This comes at a significant cost to battery life and occasionally stability.'
+                },
+                {
+                    id: 'opera', name: 'Opera',
+                    ratings: { battery: 1, privacy: 3, bitwarden: 4, performance: 2, stability: 1, features: 5, sync: 4 },
+                    batteryScore: 5600,
+                    summary: 'Offers a unique, feature-rich experience with integrated tools, but suffers from poor battery efficiency and significant stability issues.'
+                },
+                {
+                    id: 'safari', name: 'Apple Safari',
+                    ratings: { battery: 4, privacy: 4, bitwarden: 1, performance: 5, stability: 5, features: 2, sync: 2 },
+                    batteryScore: 4401.14,
+                    summary: 'Excellent performance and strong battery life on macOS, but its closed ecosystem severely restricts third-party password managers like Bitwarden, a key pain point for the user.'
+                }
+            ];
+
+            const criteria = [
+                { id: 'battery', name: 'Battery Efficiency', description: 'Prioritizes longer battery life on laptops, especially macOS.' },
+                { id: 'privacy', name: 'Privacy & Data Handling', description: 'Values minimal data collection and strong user data protection.' },
+                { id: 'bitwarden', name: 'Bitwarden/Passkey Support', description: 'Requires seamless integration with third-party password managers.' },
+                { id: 'performance', name: 'Creative Performance', description: 'Needs smooth operation on sites like Figma and Canva.' },
+                { id: 'stability', name: 'Stability & Reliability', description: 'Prefers a crash-free, dependable Browse experience.' },
+                { id: 'features', name: 'Features & Customization', description: 'Looks for a rich built-in feature set or extensive add-ons.' },
+                { id: 'sync', name: 'Cross-Platform Sync', description: 'Requires seamless data synchronization between macOS and Android.' },
+            ];
+
+            const prioritySlidersContainer = document.getElementById('priority-sliders');
+            const verdictContent = document.getElementById('verdict-content');
+            let currentCharts = {};
+
+            function init() {
+                createPrioritySliders();
+                setupNavigation();
+                updateAll();
+                createCriterionButtons();
+                createBrowserButtons();
+                // Initial view setup
+                showCriterionDetail(criteria[0].id);
+            }
+            
+            function createPrioritySliders() {
+                criteria.forEach(criterion => {
+                    const sliderHTML = `
+                        <div class="flex flex-col">
+                            <label for="${criterion.id}-slider" class="text-gray-700 font-medium mb-1">${criterion.name}</label>
+                            <input type="range" id="${criterion.id}-slider" data-criterion="${criterion.id}" min="1" max="5" value="3" class="priority-slider w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                            <span class="text-xs text-gray-500 mt-1">${criterion.description}</span>
+                        </div>
+                    `;
+                    prioritySlidersContainer.innerHTML += sliderHTML;
+                });
+
+                document.querySelectorAll('.priority-slider').forEach(slider => {
+                    slider.addEventListener('input', updateAll);
+                });
+            }
+
+            function getUserPriorities() {
+                const priorities = {};
+                document.querySelectorAll('.priority-slider').forEach(slider => {
+                    priorities[slider.dataset.criterion] = parseInt(slider.value, 10);
+                });
+                return priorities;
+            }
+
+            function calculateScores() {
+                const priorities = getUserPriorities();
+                return browserData.map(browser => {
+                    let score = 0;
+                    for (const key in priorities) {
+                        score += (browser.ratings[key] || 0) * priorities[key];
+                    }
+                    return { ...browser, score };
+                }).sort((a, b) => b.score - a.score);
+            }
+
+            function updateVerdict() {
+                const rankedBrowsers = calculateScores();
+                const topPick = rankedBrowsers[0];
+
+                verdictContent.innerHTML = `
+                    <h3 class="text-xl font-bold mb-2">Based on your priorities, your top pick is <span class="text-amber-500">${topPick.name}</span>.</h3>
+                    <p class="text-gray-700">${topPick.summary}</p>
+                `;
+            }
+
+            function setupNavigation() {
+                const navButtons = document.querySelectorAll('.nav-button');
+                const views = {
+                    criterion: document.getElementById('view-criterion'),
+                    browser: document.getElementById('view-browser')
+                };
+
+                navButtons.forEach(button => {
+                    button.addEventListener('click', () => {
+                        const view = button.dataset.view;
+                        navButtons.forEach(btn => btn.classList.remove('active'));
+                        button.classList.add('active');
+
+                        Object.values(views).forEach(v => v.classList.add('hidden'));
+                        views[view].classList.remove('hidden');
+                    });
+                });
+            }
+
+            function createCriterionButtons() {
+                const container = document.querySelector('#view-criterion .flex-wrap');
+                container.innerHTML = '';
+                criteria.forEach((criterion, index) => {
+                    const button = document.createElement('button');
+                    button.textContent = criterion.name;
+                    button.className = `criterion-btn nav-button py-2 px-3 text-sm rounded-full bg-white shadow ${index === 0 ? 'active' : ''}`;
+                    button.dataset.criterionId = criterion.id;
+                    button.addEventListener('click', () => {
+                        document.querySelectorAll('.criterion-btn').forEach(btn => btn.classList.remove('active'));
+                        button.classList.add('active');
+                        showCriterionDetail(criterion.id);
+                    });
+                    container.appendChild(button);
+                });
+            }
+            
+            function createBrowserButtons() {
+                const container = document.querySelector('#view-browser .flex-wrap');
+                 container.innerHTML = '';
+                browserData.forEach((browser, index) => {
+                    const button = document.createElement('button');
+                    button.textContent = browser.name;
+                    button.className = `browser-btn nav-button py-2 px-3 text-sm rounded-full bg-white shadow ${index === 0 ? 'active' : ''}`;
+                    button.dataset.browserId = browser.id;
+                    button.addEventListener('click', () => {
+                        document.querySelectorAll('.browser-btn').forEach(btn => btn.classList.remove('active'));
+                        button.classList.add('active');
+                        showBrowserDetail(browser.id);
+                    });
+                    container.appendChild(button);
+                });
+            }
+            
+            function showCriterionDetail(criterionId) {
+                const container = document.getElementById('criterion-detail');
+                const criterion = criteria.find(c => c.id === criterionId);
+                
+                if (criterionId === 'battery') {
+                    container.innerHTML = `
+                        <h3 class="text-xl font-bold mb-1">${criterion.name}</h3>
+                        <p class="text-gray-600 mb-6 max-w-2xl">${criterion.description} The chart shows the Average Energy Impact; a lower score is better.</p>
+                        <div class="chart-container"><canvas id="battery-chart"></canvas></div>
+                    `;
+                    renderBatteryChart();
+                } else {
+                     container.innerHTML = `
+                        <h3 class="text-xl font-bold mb-1">${criterion.name}</h3>
+                        <p class="text-gray-600 mb-6 max-w-2xl">${criterion.description}</p>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            ${browserData.sort((a,b) => b.ratings[criterionId] - a.ratings[criterionId]).map(browser => `
+                                <div class="border rounded-lg p-4 bg-gray-50">
+                                    <h4 class="font-bold text-lg text-gray-800">${browser.name}</h4>
+                                    <div class="flex items-center my-2">
+                                        ${getRatingStars(browser.ratings[criterionId])}
+                                    </div>
+                                    <p class="text-sm text-gray-600">${getCriterionSummary(browser.id, criterionId)}</p>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                }
+            }
+            
+            function showBrowserDetail(browserId) {
+                const container = document.getElementById('browser-detail');
+                const browser = browserData.find(b => b.id === browserId);
+                container.innerHTML = `
+                    <h3 class="text-xl font-bold mb-1">${browser.name}</h3>
+                    <p class="text-gray-600 mb-6 max-w-2xl">${browser.summary}</p>
+                    <div class="chart-container"><canvas id="browser-radar-chart"></canvas></div>
+                `;
+                renderRadarChart(browser);
+            }
+
+            function renderBatteryChart() {
+                if (currentCharts.battery) currentCharts.battery.destroy();
+                const ctx = document.getElementById('battery-chart').getContext('2d');
+                const chartData = browserData.map(b => ({x: b.batteryScore, y: b.name})).sort((a,b) => a.x - b.x);
+
+                currentCharts.battery = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: chartData.map(d => d.y),
+                        datasets: [{
+                            label: 'Average Energy Impact (Lower is Better)',
+                            data: chartData.map(d => d.x),
+                            backgroundColor: 'rgba(0, 121, 107, 0.6)',
+                            borderColor: 'rgba(0, 121, 107, 1)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        indexAxis: 'y',
+                        maintainAspectRatio: false,
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                display: false,
+                            },
+                             title: {
+                                display: true,
+                                text: 'Energy Efficiency on macOS'
+                            }
+                        },
+                        scales: {
+                            x: {
+                                beginAtZero: false,
+                                title: {
+                                    display: true,
+                                    text: 'Average Energy Impact Score'
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+            
+            function renderRadarChart(browser) {
+                 if (currentCharts.radar) currentCharts.radar.destroy();
+                 const ctx = document.getElementById('browser-radar-chart').getContext('2d');
+                 const data = criteria.map(c => browser.ratings[c.id]);
+                 const labels = criteria.map(c => c.name.replace(/ & |\/|\s/g, '\n'));
+                 
+                 currentCharts.radar = new Chart(ctx, {
+                    type: 'radar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: browser.name,
+                            data: data,
+                            fill: true,
+                            backgroundColor: 'rgba(0, 121, 107, 0.2)',
+                            borderColor: 'rgb(0, 121, 107)',
+                            pointBackgroundColor: 'rgb(0, 121, 107)',
+                            pointBorderColor: '#fff',
+                            pointHoverBackgroundColor: '#fff',
+                            pointHoverBorderColor: 'rgb(0, 121, 107)'
+                        }]
+                    },
+                    options: {
+                        maintainAspectRatio: false,
+                        responsive: true,
+                        elements: {
+                            line: {
+                                borderWidth: 3
+                            }
+                        },
+                        scales: {
+                            r: {
+                                beginAtZero: true,
+                                max: 5,
+                                min: 0,
+                                stepSize: 1,
+                                pointLabels: {
+                                    font: {
+                                        size: 10
+                                    }
+                                }
+                            }
+                        }
+                    }
+                 });
+            }
+
+            function getRatingStars(rating) {
+                let stars = '';
+                for (let i = 0; i < 5; i++) {
+                    stars += `<span class="text-xl ${i < rating ? 'text-amber-400' : 'text-gray-300'}">★</span>`;
+                }
+                return stars;
+            }
+
+            function getCriterionSummary(browserId, criterionId) {
+                const summaries = {
+                    firefox: {
+                        privacy: "Balanced approach with good user control.",
+                        bitwarden: "Excellent and reliable support for extensions and passkeys.",
+                        performance: "Acceptable, but can lag in graphics-heavy tasks.",
+                        stability: "Highly stable and reliable for daily use.",
+                        features: "Good customization through a vast library of add-ons.",
+                        sync: "Excellent and seamless sync across platforms."
+                    },
+                    brave: {
+                        privacy: "Top-tier, privacy-by-design philosophy with no data selling.",
+                        bitwarden: "Good, but potential conflicts with its native manager.",
+                        performance: "Very good due to Chromium base and ad-blocking.",
+                        stability: "Generally stable in release builds.",
+                        features: "Privacy-focused features like built-in ad blocker and Tor mode.",
+                        sync: "Comprehensive sync chain for all data types."
+                    },
+                    edge: {
+                        privacy: "Good, but operates within Microsoft's data ecosystem.",
+                        bitwarden: "Excellent and reliable, works as expected.",
+                        performance: "Very good, on par with or better than Chrome.",
+                        stability: "Very good, generally stable with regular updates.",
+                        features: "Feature-rich with AI tools and vertical tabs.",
+                        sync: "Excellent and seamless sync across platforms."
+                    },
+                    chrome: {
+                        privacy: "Fair, extensive data collection for Google's services.",
+                        bitwarden: "Excellent integration, especially with PRF-capable passkeys.",
+                        performance: "Top-tier for web app compatibility and speed.",
+                        stability: "Highly stable and seen as an industry benchmark.",
+                        features: "Relies heavily on its massive extension ecosystem.",
+                        sync: "Excellent and seamless sync across platforms."
+                    },
+                    vivaldi: {
+                         privacy: "Excellent, with a clear 'no data selling' policy.",
+                         bitwarden: "Good support via the Chrome Web Store.",
+                         performance: "Can feel unpolished or lag with many tabs open.",
+                         stability: "Mixed reports, with some users experiencing regular errors.",
+                         features: "Unmatched built-in features for power users.",
+                         sync: "Good, with end-to-end encrypted sync.",
+                    },
+                    opera: {
+                        privacy: "Fair, offers a VPN but has had privacy concerns.",
+                        bitwarden: "Good support via the Chrome Web Store.",
+                        performance: "Poor, reports of high RAM usage and lag.",
+                        stability: "Poor, frequent reports of crashes and freezes.",
+                        features: "Very feature-rich with integrated messengers and tools.",
+                        sync: "Good, includes the 'Flow' feature for easy file sharing."
+                    },
+                     safari: {
+                        privacy: "Very good on-device processing and tracking prevention.",
+                        bitwarden: "Poor, closed ecosystem prevents deep integration.",
+                        performance: "Excellent raw graphics performance on macOS.",
+                        stability: "Excellent, deeply integrated with the OS.",
+                        features: "Limited compared to others, relies on built-in functionality.",
+                        sync: "Poor for non-Apple users (no Android version)."
+                    }
+                };
+                return summaries[browserId][criterionId];
+            }
+            
+            function updateAll() {
+                updateVerdict();
+                const activeCriterionBtn = document.querySelector('.criterion-btn.active');
+                if (activeCriterionBtn) {
+                     showCriterionDetail(activeCriterionBtn.dataset.criterionId);
+                }
+                 const activeBrowserBtn = document.querySelector('.browser-btn.active');
+                 if(activeBrowserBtn && !document.getElementById('view-browser').classList.contains('hidden')){
+                    showBrowserDetail(activeBrowserBtn.dataset.browserId)
+                 }
+            }
+
+            init();
+        });
+    </script>
+</body>
+</html>
